@@ -98,6 +98,7 @@ public class RequestHandler implements HttpHandler {
             response.getHeaders().putIfAbsent("Access-Control-Allow-Origin", config.get(WebserverSettings.CORS_ALLOW_ORIGIN));
             response.getHeaders().putIfAbsent("Access-Control-Allow-Methods", "GET, OPTIONS");
             response.getHeaders().putIfAbsent("Access-Control-Allow-Credentials", "true");
+            response.getHeaders().putIfAbsent("X-Robots-Tag", "noindex, nofollow");
             ResponseSender sender = new ResponseSender(addresses, exchange, response);
             sender.send();
         } catch (Exception e) {
@@ -115,7 +116,7 @@ public class RequestHandler implements HttpHandler {
 
     public Response getResponse(HttpExchange exchange) {
         if (ipWhitelist == null) {
-            ipWhitelist = config.get(WebserverSettings.IP_WHITELIST)
+            ipWhitelist = config.isTrue(WebserverSettings.IP_WHITELIST)
                     ? config.get(WebserverSettings.WHITELIST)
                     : Collections.emptyList();
         }
@@ -141,7 +142,7 @@ public class RequestHandler implements HttpHandler {
                 String from = exchange.getRequestURI().toASCIIString();
                 response = Response.builder()
                         .redirectTo(StringUtils.startsWithAny(from, "/auth/", "/login") ? "/login" : "/login?from=." + from)
-                        .setHeader("Set-Cookie", "auth=expired; Path=/; Max-Age=1")
+                        .setHeader("Set-Cookie", "auth=expired; Path=/; Max-Age=1; SameSite=Lax; Secure;")
                         .build();
             }
         }

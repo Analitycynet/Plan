@@ -16,6 +16,7 @@
  */
 package com.djrapitops.plan.utilities.logging;
 
+import java.io.Serializable;
 import java.util.*;
 
 /**
@@ -23,7 +24,7 @@ import java.util.*;
  *
  * @author Rsl1122
  */
-public class ErrorContext {
+public class ErrorContext implements Serializable {
 
     private final List<Object> related;
     private String whatToDo;
@@ -51,6 +52,7 @@ public class ErrorContext {
 
     public void merge(ErrorContext context) {
         this.related.addAll(context.related);
+        if (this.whatToDo == null && context.whatToDo != null) this.whatToDo = context.whatToDo;
     }
 
     public static class Builder {
@@ -78,5 +80,13 @@ public class ErrorContext {
         public ErrorContext build() {
             return context;
         }
+    }
+
+    @Override
+    public String toString() {
+        return "ErrorContext{" +
+                "related=" + related +
+                ", whatToDo='" + whatToDo + '\'' +
+                '}';
     }
 }

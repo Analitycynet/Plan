@@ -29,14 +29,15 @@ import java.util.Optional;
  */
 public class DBOpException extends IllegalStateException implements ExceptionWithContext {
 
-    private ErrorContext context;
+    private final ErrorContext context;
 
     public DBOpException(String message) {
         super(message);
+        this.context = null;
     }
 
     public DBOpException(String message, Throwable cause) {
-        super(message, cause);
+        this(message, cause, null);
     }
 
     public DBOpException(String message, Throwable cause, ErrorContext context) {
@@ -122,6 +123,27 @@ public class DBOpException extends IllegalStateException implements ExceptionWit
             case 23513:
                 context.related("Constraint Violation")
                         .whatToDo("Report this, there is an SQL Constraint Violation.");
+                break;
+            // Custom rules based on reported errors
+            case 11:
+            case 14:
+                context.related("SQLite file is corrupt.")
+                        .whatToDo("SQLite database is corrupt, restore database.db, .db-shm & .db-wal files from a backup, or repair the database: https://wordpress.semnaitik.com/repair-sqlite-database/.");
+                break;
+            case 1104:
+                context.whatToDo("MySQL has too small query limits for the query. SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# (higher number)");
+                break;
+            case 1142:
+                context.related("Missing privilege")
+                        .whatToDo("Grant the required privileges to your MySQL user (often 'REFERENCES' privilege is missing).");
+                break;
+            case 1213:
+                context.related("Deadlock");
+                break;
+            case 1267:
+            case 1366:
+                context.related("Incorrect character encoding in MySQL")
+                        .whatToDo("Convert your MySQL database and tables to use uft8mb4: https://www.a2hosting.com/kb/developer-corner/mysql/convert-mysql-database-utf-8");
                 break;
             default:
                 context.related("Unknown SQL Error code");

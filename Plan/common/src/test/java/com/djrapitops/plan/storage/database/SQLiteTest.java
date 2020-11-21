@@ -17,7 +17,10 @@
 package com.djrapitops.plan.storage.database;
 
 import com.djrapitops.plan.PlanSystem;
+import com.djrapitops.plan.delivery.DeliveryUtilities;
 import com.djrapitops.plan.identification.Server;
+import com.djrapitops.plan.identification.ServerInfo;
+import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.storage.database.queries.*;
 import com.djrapitops.plan.storage.database.transactions.StoreServerInformationTransaction;
 import com.djrapitops.plan.storage.database.transactions.commands.RemoveEverythingTransaction;
@@ -28,15 +31,16 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import utilities.DBPreparer;
 import utilities.RandomData;
-import utilities.mocks.PluginMockComponent;
 
 import java.nio.file.Path;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for SQLite Database.
@@ -61,13 +65,17 @@ public class SQLiteTest implements DatabaseTest,
 
     private static final int TEST_PORT_NUMBER = RandomData.randomInt(9005, 9500);
 
-    private static PlanSystem system;
     private static Database database;
+    private static DatabaseTestComponent component;
+    private static DBPreparer preparer;
 
     @BeforeAll
     static void setupDatabase(@TempDir Path temp) throws Exception {
-        system = new PluginMockComponent(temp).getPlanSystem();
-        database = new DBPreparer(system, TEST_PORT_NUMBER).prepareSQLite()
+        component = DaggerDatabaseTestComponent.builder()
+                .bindTemporaryDirectory(temp)
+                .build();
+        preparer = new DBPreparer(component, TEST_PORT_NUMBER);
+        database = preparer.prepareSQLite()
                 .orElseThrow(IllegalStateException::new);
     }
 
@@ -91,14 +99,14 @@ public class SQLiteTest implements DatabaseTest,
         db().executeTransaction(new CreateTablesTransaction());
         db().executeTransaction(new RemoveEverythingTransaction());
 
-        db().executeTransaction(new StoreServerInformationTransaction(new Server(-1, serverUUID(), "ServerName", "", 20)));
+        db().executeTransaction(new StoreServerInformationTransaction(new Server(serverUUID(), "ServerName", "")));
         assertEquals(serverUUID(), ((SQLDB) db()).getServerUUIDSupplier().get());
     }
 
     @AfterAll
     static void disableSystem() {
         if (database != null) database.close();
-        system.disable();
+        preparer.tearDown();
     }
 
     @Override
@@ -108,11 +116,33 @@ public class SQLiteTest implements DatabaseTest,
 
     @Override
     public UUID serverUUID() {
-        return system.getServerInfo().getServerUUID();
+        return component.serverInfo().getServerUUID();
+    }
+
+    @Override
+    public PlanConfig config() {
+        return component.config();
+    }
+
+    @Override
+    public DBSystem dbSystem() {
+        return component.dbSystem();
+    }
+
+    @Override
+    public ServerInfo serverInfo() {
+        return component.serverInfo();
+    }
+
+    @Override
+    public DeliveryUtilities deliveryUtilities() {
+        return component.deliveryUtilities();
     }
 
     @Override
     public PlanSystem system() {
-        return system;
+        PlanSystem mockSystem = Mockito.mock(PlanSystem.class);
+        when(mockSystem.getPlanFiles()).thenReturn(component.files());
+        return mockSystem;
     }
 }

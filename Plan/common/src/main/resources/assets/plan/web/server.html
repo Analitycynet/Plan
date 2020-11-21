@@ -8,6 +8,7 @@
     <meta content="Player Analytics, server analysis page that allows gaining insights to how players play on your server."
           name="description">
     <meta content="Rsl1122" name="author">
+    <meta content="noindex, nofollow" name="robots">
 
     <title>Plan | Server Analysis</title>
 
@@ -22,7 +23,7 @@
     <link href="../css/style.css" rel="stylesheet">
 </head>
 
-<body id="page-top">
+<body>
 <script>
     var gmPieColors = [${gmPieColors}];
 </script>
@@ -1255,11 +1256,6 @@
 </div>
 <!-- End of Page Wrapper -->
 
-<!-- Scroll to Top Button-->
-<a class="scroll-to-top rounded" href="#page-top">
-    <i class="fas fa-fw fa-angle-up"></i>
-</a>
-
 <!-- Bootstrap core JavaScript-->
 <script src="../vendor/jquery/jquery.min.js"></script>
 <script src="../vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
@@ -1538,7 +1534,12 @@
                 $('#calendar').text('');
                 onlineActivityCalendar('#calendar', json.data, json.firstDay);
                 $('#online-calendar-tab').click(function () {
-                    $('#calendar').fullCalendar('render');
+                    // Wrapping this in a 0ms setTimeout waits for all other event handlers
+                    // to finish. We need this because if the calendar is rendered
+                    // immediately, it renders for a width of 0.
+                    setTimeout(function() {
+                        window.calendars.online_activity.render();
+                    }, 0);
                 });
             } else if (error) {
                 $('#calendar').text("Failed to load calendar data: " + error)

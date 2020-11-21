@@ -42,10 +42,7 @@ import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
@@ -70,7 +67,7 @@ public abstract class SQLDB extends AbstractDatabase {
 
     private final boolean devMode;
 
-    public SQLDB(
+    protected SQLDB(
             Supplier<UUID> serverUUIDSupplier,
             Locale locale,
             PlanConfig config,
@@ -204,7 +201,15 @@ public abstract class SQLDB extends AbstractDatabase {
             runnableFactory.create("Database Index Creation", new AbsRunnable() {
                 @Override
                 public void run() {
-                    executeTransaction(new CreateIndexTransaction());
+                    if (getState() == State.CLOSED || getState() == State.CLOSING) {
+                        cancel();
+                        return;
+                    }
+                    try {
+                        executeTransaction(new CreateIndexTransaction());
+                    } catch (DBOpException e) {
+                        errorLogger.log(L.WARN, e);
+                    }
                 }
             }).runTaskLaterAsynchronously(TimeAmount.toTicks(1, TimeUnit.MINUTES));
         } catch (Exception ignore) {
@@ -259,13 +264,20 @@ public abstract class SQLDB extends AbstractDatabase {
             if (throwable == null) {
                 return CompletableFuture.completedFuture(null);
             }
-            if (throwable instanceof FatalDBException) {
+            if (throwable.getCause() instanceof FatalDBException) {
+                logger.error("Database failed to open, " + transaction.getClass().getName() + " failed to be executed.");
+                FatalDBException actual = (FatalDBException) throwable.getCause();
+                Optional<String> whatToDo = actual.getContext().flatMap(ErrorContext::getWhatToDo);
+                whatToDo.ifPresent(message -> logger.error("What to do: " + message));
+                if (!whatToDo.isPresent()) logger.error("Error msg: " + actual.getMessage());
                 setState(State.CLOSED);
             }
             ThrowableUtils.appendEntryPointToCause(throwable, origin);
 
-            errorLogger.log(L.ERROR, throwable, ErrorContext.builder()
-                    .related("Transaction: " + transaction.getClass()).build());
+            errorLogger.log(getState() == State.CLOSED ? L.CRITICAL : L.ERROR, throwable, ErrorContext.builder()
+                    .related("Transaction: " + transaction.getClass())
+                    .related("DB State: " + getState())
+                    .build());
             return CompletableFuture.completedFuture(null);
         };
     }
@@ -296,5 +308,13 @@ public abstract class SQLDB extends AbstractDatabase {
 
     public void setTransactionExecutorServiceProvider(Supplier<ExecutorService> transactionExecutorServiceProvider) {
         this.transactionExecutorServiceProvider = transactionExecutorServiceProvider;
+    }
+
+    public RunnableFactory getRunnableFactory() {
+        return runnableFactory;
+    }
+
+    public PluginLogger getLogger() {
+        return logger;
     }
 }

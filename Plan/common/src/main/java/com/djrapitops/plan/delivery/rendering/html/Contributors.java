@@ -16,6 +16,9 @@
  */
 package com.djrapitops.plan.delivery.rendering.html;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 import static com.djrapitops.plan.delivery.rendering.html.Contributors.For.CODE;
 import static com.djrapitops.plan.delivery.rendering.html.Contributors.For.LANG;
 
@@ -33,6 +36,7 @@ public class Contributors {
     public static String generateContributorHtml() {
         Contributor[] contributors = new Contributor[]{
                 new Contributor("aidn5", CODE),
+                new Contributor("Antonok", CODE),
                 new Contributor("Argetan", CODE),
                 new Contributor("Aurelien", CODE, LANG),
                 new Contributor("BrainStone", CODE),
@@ -58,6 +62,7 @@ public class Contributors {
                 new Contributor("Morsmorse", LANG),
                 new Contributor("Nogapra", LANG),
                 new Contributor("Saph1s", LANG),
+                new Contributor("Shadowhackercz", LANG),
                 new Contributor("shaokeyibb", LANG),
                 new Contributor("skmedix", CODE),
                 new Contributor("TDJisvan", LANG),
@@ -65,7 +70,8 @@ public class Contributors {
                 new Contributor("yukieji", LANG),
                 new Contributor("qsefthuopq", LANG),
                 new Contributor("Karlatemp", CODE, LANG),
-                new Contributor("Mastory_Md5", LANG)
+                new Contributor("Mastory_Md5", LANG),
+                new Contributor("FluxCapacitor2", CODE)
         };
         int estimatedLength = contributors.length * 40 + 50;
         StringBuilder html = new StringBuilder(estimatedLength);
@@ -106,6 +112,22 @@ public class Contributors {
                 html.append(contribution.toHtml());
             }
             html.append("</li>");
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Contributor that = (Contributor) o;
+            return name.equals(that.name) &&
+                    Arrays.equals(contributed, that.contributed);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = Objects.hash(name);
+            result = 31 * result + Arrays.hashCode(contributed);
+            return result;
         }
 
         @Override

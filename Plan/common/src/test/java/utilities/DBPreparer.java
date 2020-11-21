@@ -17,7 +17,7 @@
 package utilities;
 
 import com.djrapitops.plan.PlanSystem;
-import com.djrapitops.plan.exceptions.EnableException;
+import com.djrapitops.plan.SubSystem;
 import com.djrapitops.plan.settings.config.PlanConfig;
 import com.djrapitops.plan.settings.config.paths.DatabaseSettings;
 import com.djrapitops.plan.settings.config.paths.WebserverSettings;
@@ -34,31 +34,35 @@ import java.util.Optional;
 
 public class DBPreparer {
 
-    private final PlanSystem system;
+    private final Dependencies dependencies;
     private final int testPortNumber;
 
     public DBPreparer(PlanSystem system, int testPortNumber) {
-        this.system = system;
+        this(new PlanSystemAsDependencies(system), testPortNumber);
+    }
+
+    public DBPreparer(Dependencies dependencies, int testPortNumber) {
+        this.dependencies = dependencies;
         this.testPortNumber = testPortNumber;
     }
 
-    public Optional<Database> prepareSQLite() throws EnableException {
+    public Optional<Database> prepareSQLite() {
         String dbName = DBType.SQLITE.getName();
         return Optional.of(prepareDBByName(dbName));
     }
 
-    public Optional<Database> prepareH2() throws EnableException {
+    public Optional<Database> prepareH2() {
         String dbName = DBType.H2.getName();
         return Optional.of(prepareDBByName(dbName));
     }
 
-    private SQLDB prepareDBByName(String dbName) throws EnableException {
-        PlanConfig config = system.getConfigSystem().getConfig();
+    private SQLDB prepareDBByName(String dbName) {
+        PlanConfig config = dependencies.config();
         config.set(WebserverSettings.PORT, testPortNumber);
         config.set(DatabaseSettings.TYPE, dbName);
-        system.enable();
+        dependencies.enable();
 
-        DBSystem dbSystem = system.getDatabaseSystem();
+        DBSystem dbSystem = dependencies.dbSystem();
         SQLDB db = (SQLDB) dbSystem.getActiveDatabaseByName(dbName);
         db.setTransactionExecutorServiceProvider(MoreExecutors::newDirectExecutorService);
         db.init();
@@ -90,8 +94,8 @@ public class DBPreparer {
         return Optional.of(formattedDatabase);
     }
 
-    public Optional<Database> prepareMySQL() throws EnableException {
-        PlanConfig config = system.getConfigSystem().getConfig();
+    public Optional<Database> prepareMySQL() {
+        PlanConfig config = dependencies.config();
         Optional<String> formattedDB = setUpMySQLSettings(config);
         if (formattedDB.isPresent()) {
             String formattedDatabase = formattedDB.get();
@@ -107,5 +111,44 @@ public class DBPreparer {
             return Optional.of(mysql);
         }
         return Optional.empty();
+    }
+
+    public void tearDown() {
+        dependencies.disable();
+    }
+
+    public interface Dependencies extends SubSystem {
+        PlanConfig config();
+
+        DBSystem dbSystem();
+    }
+
+    @Deprecated
+    static class PlanSystemAsDependencies implements Dependencies {
+        private final PlanSystem system;
+
+        PlanSystemAsDependencies(PlanSystem system) {
+            this.system = system;
+        }
+
+        @Override
+        public void enable() {
+            system.enable();
+        }
+
+        @Override
+        public void disable() {
+            system.disable();
+        }
+
+        @Override
+        public PlanConfig config() {
+            return system.getConfigSystem().getConfig();
+        }
+
+        @Override
+        public DBSystem dbSystem() {
+            return system.getDatabaseSystem();
+        }
     }
 }

@@ -113,6 +113,7 @@ public class ResponseResolver {
 
     public void registerPages() {
         String plugin = "Plan";
+        resolverService.registerResolver(plugin, "/robots.txt", (NoAuthResolver) request -> Optional.of(responseFactory.robotsResponse()));
         resolverService.registerResolver(plugin, "/debug", debugPageResolver);
         resolverService.registerResolver(plugin, "/players", playersPageResolver);
         resolverService.registerResolver(plugin, "/player", playerPageResolver);
@@ -157,7 +158,7 @@ public class ResponseResolver {
     private Response tryToGetResponse(Request request) {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             // https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/OPTIONS
-            return Response.builder().setStatus(204).setContent(new byte[0]).build();
+            return Response.builder().setStatus(204).build();
         }
 
         Optional<WebUser> user = request.getUser();
